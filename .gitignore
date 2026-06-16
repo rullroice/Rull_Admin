@@ -1,0 +1,21 @@
+# Dependencias — se reinstalan con npm install
+node_modules/
+ 
+# Variables de entorno — NUNCA subir al repositorio
+backend/.env
+.env
+ 
+# Base de datos generada en runtime
+backend/rulltec.db
+ 
+# Reportes de cobertura de tests
+coverage/
+ 
+# Archivos de sistema
+.DS_Store
+Thumbs.db
+ 
+# Logs
+*.log
+npm-debug.log*
+ 

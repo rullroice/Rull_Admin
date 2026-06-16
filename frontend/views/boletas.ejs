@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><%- include('partials/head', { title: 'Boletas' }) %></head>
+<body>
+<div class="layout">
+  <%- include('partials/sidebar', { page: 'boletas' }) %>
+  <main class="main">
+    <div class="page-header"><h1>Historial de Boletas</h1></div>
+    <div class="alert" id="alerta"></div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Cliente</th><th>Servicio</th><th>Precio</th><th>Desc.</th><th>Total</th><th>Anticipo</th><th>Vuelto</th><th>Fecha</th></tr></thead>
+          <tbody id="tablaBody"><tr><td colspan="9"><div class="empty-state"><p>Cargando…</p></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="modal-overlay" id="modal">
+  <div class="modal-box" style="max-width:420px">
+    <div class="modal-header">
+      <h3>Detalle boleta <span id="boletaNum"></span></h3>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div id="boletaDetalle" style="font-size:0.9rem;line-height:1.9"></div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModal()">Cerrar</button>
+      <button class="btn btn-primary" onclick="descargarPDF()">Descargar PDF</button>
+    </div>
+  </div>
+</div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="/js/app.js"></script>
+<script src="/js/boletas.js"></script>
+</body>
+</html>

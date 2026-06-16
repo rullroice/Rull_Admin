@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><%- include('partials/head', { title: 'Equipos' }) %></head>
+<body>
+<div class="layout">
+  <%- include('partials/sidebar', { page: 'equipos' }) %>
+  <main class="main">
+    <div class="page-header">
+      <h1>Equipos</h1>
+      <button class="btn btn-primary" onclick="abrirModalEquipo()">+ Nuevo equipo</button>
+    </div>
+    <div class="alert" id="alerta"></div>
+    <div class="card">
+      <div class="filters">
+        <select id="filtroEstado" onchange="cargarEquipos()">
+          <option value="">Todos los estados</option>
+          <option value="ingresado">Ingresado</option>
+          <option value="en_revision">En revisión</option>
+          <option value="en_reparacion">En reparación</option>
+          <option value="listo">Listo</option>
+          <option value="entregado">Entregado</option>
+        </select>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Cliente</th><th>Tipo</th><th>Marca</th><th>Requerimiento</th><th>Estado</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaBody"><tr><td colspan="7"><div class="empty-state"><p>Cargando…</p></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="modal-overlay" id="modalEquipo">
+  <div class="modal-box">
+    <div class="modal-header"><h3 id="modalTitulo">Nuevo equipo</h3><button class="modal-close" onclick="cerrarModalEquipo()">✕</button></div>
+    <div class="alert" id="alertaModal"></div>
+    <form id="formEquipo" onsubmit="guardarEquipo(event)">
+      <input type="hidden" id="equipoId">
+      <div class="form-group" style="margin-bottom:1rem"><label>Cliente *</label><select id="clienteSelect" required></select></div>
+      <div class="form-row" style="margin-bottom:1rem">
+        <div class="form-group"><label>Tipo *</label><select id="tipo" required><option value="">Seleccionar…</option><option value="notebook">Notebook</option><option value="escritorio">Escritorio</option></select></div>
+        <div class="form-group"><label>Marca</label><input type="text" id="marca" placeholder="HP, Dell, etc."></div>
+      </div>
+      <div class="form-group" style="margin-bottom:1rem"><label>Requerimiento *</label><textarea id="requerimiento" rows="3" required minlength="5" style="resize:vertical"></textarea></div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="cerrarModalEquipo()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnGuardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<div class="modal-overlay" id="modalEstado">
+  <div class="modal-box" style="max-width:400px">
+    <div class="modal-header"><h3>Cambiar estado</h3><button class="modal-close" onclick="cerrarModalEstado()">✕</button></div>
+    <div class="alert" id="alertaEstado"></div>
+    <p id="equipoInfo" style="margin-bottom:1rem;color:var(--text-soft);font-size:0.875rem"></p>
+    <div class="form-group">
+      <label>Nuevo estado</label>
+      <select id="nuevoEstado">
+        <option value="ingresado">Ingresado</option>
+        <option value="en_revision">En revisión</option>
+        <option value="en_reparacion">En reparación</option>
+        <option value="listo">Listo</option>
+        <option value="entregado">Entregado</option>
+      </select>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-outline" onclick="cerrarModalEstado()">Cancelar</button>
+      <button class="btn btn-success" onclick="cambiarEstado()">Actualizar estado</button>
+    </div>
+  </div>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/equipos.js"></script>
+</body>
+</html>

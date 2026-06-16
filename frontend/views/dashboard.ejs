@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><%- include('partials/head', { title: 'Dashboard' }) %></head>
+<body>
+<div class="layout">
+  <%- include('partials/sidebar', { page: 'dashboard' }) %>
+  <main class="main">
+    <div class="page-header">
+      <h1>Panel de control</h1>
+      <small id="fechaHoy" style="color:var(--text-soft)"></small>
+    </div>
+    <div class="stats-grid">
+      <div class="stat-card"><div class="stat-label">Atenciones hoy</div><div class="stat-value" id="statAtenciones">—</div><div class="stat-sub">boletas emitidas</div></div>
+      <div class="stat-card"><div class="stat-label">Recaudación hoy</div><div class="stat-value" id="statRecaudacion">—</div><div class="stat-sub">suma de totales</div></div>
+    </div>
+    <div class="card">
+      <div class="card-title">Equipos por estado</div>
+      <div class="stats-grid">
+        <div class="stat-card"><div class="stat-label">Ingresado</div><div class="stat-value" id="eIngresado">—</div></div>
+        <div class="stat-card"><div class="stat-label">En revisión</div><div class="stat-value" id="eRevision">—</div></div>
+        <div class="stat-card"><div class="stat-label">En reparación</div><div class="stat-value" id="eReparacion">—</div></div>
+        <div class="stat-card"><div class="stat-label">Listo</div><div class="stat-value" id="eListo">—</div></div>
+        <div class="stat-card"><div class="stat-label">Entregado</div><div class="stat-value" id="eEntregado">—</div></div>
+      </div>
+    </div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/dashboard.js"></script>
+</body>
+</html>

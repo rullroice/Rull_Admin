@@ -1,0 +1,29 @@
+<aside class="sidebar">
+  <div class="sidebar-logo">
+    <div class="sidebar-brand">
+      <div class="brand-icon">⚙</div>
+      <div>
+        <h2>RullTec</h2>
+        <p>Gestión de Mantenimiento</p>
+      </div>
+    </div>
+  </div>
+  <nav class="sidebar-nav">
+    <a href="/dashboard" class="nav-link <%= page === 'dashboard' ? 'active' : '' %>"><span class="nav-icon">📊</span> Dashboard</a>
+    <a href="/clientes"  class="nav-link <%= page === 'clientes'  ? 'active' : '' %>"><span class="nav-icon">👥</span> Clientes</a>
+    <a href="/equipos"   class="nav-link <%= page === 'equipos'   ? 'active' : '' %>"><span class="nav-icon">💻</span> Equipos</a>
+    <a href="/servicios" class="nav-link <%= page === 'servicios' ? 'active' : '' %>"><span class="nav-icon">🔧</span> Servicios</a>
+    <a href="/caja"      class="nav-link <%= page === 'caja'      ? 'active' : '' %>"><span class="nav-icon">💰</span> Caja</a>
+    <a href="/boletas"   class="nav-link <%= page === 'boletas'   ? 'active' : '' %>"><span class="nav-icon">🧾</span> Boletas</a>
+  </nav>
+  <div class="sidebar-footer">
+    <div class="user-info">
+      <div class="user-avatar" id="userAvatar">U</div>
+      <div>
+        <span id="usuarioNombre">—</span>
+        <small id="usuarioRol"></small>
+      </div>
+    </div>
+    <button class="btn-logout" onclick="cerrarSesion()">Cerrar sesión</button>
+  </div>
+</aside>

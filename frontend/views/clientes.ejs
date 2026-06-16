@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><%- include('partials/head', { title: 'Clientes' }) %></head>
+<body>
+<div class="layout">
+  <%- include('partials/sidebar', { page: 'clientes' }) %>
+  <main class="main">
+    <div class="page-header">
+      <h1>Clientes</h1>
+      <button class="btn btn-primary" onclick="abrirModal()">+ Nuevo cliente</button>
+    </div>
+    <div class="alert" id="alerta"></div>
+    <div class="card">
+      <div class="filters">
+        <input type="text" id="busqueda" placeholder="Buscar por nombre o RUT…" oninput="cargarClientes()">
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Nombre</th><th>RUT</th><th>Teléfono</th><th>Registro</th><th>Acciones</th></tr></thead>
+          <tbody id="tablaBody"><tr><td colspan="6"><div class="empty-state"><p>Cargando…</p></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <h3 id="modalTitulo">Nuevo cliente</h3>
+      <button class="modal-close" onclick="cerrarModal()">✕</button>
+    </div>
+    <div class="alert" id="alertaModal"></div>
+    <form id="formCliente" onsubmit="guardarCliente(event)">
+      <input type="hidden" id="clienteId">
+      <div class="form-row" style="margin-bottom:1rem">
+        <div class="form-group"><label>Nombre *</label><input type="text" id="nombre" required minlength="2"></div>
+        <div class="form-group"><label>Apellido *</label><input type="text" id="apellido" required minlength="2"></div>
+      </div>
+      <div class="form-row" style="margin-bottom:1rem">
+        <div class="form-group">
+          <label>RUT *</label>
+          <input type="text" id="rut" placeholder="12.345.678-9" required maxlength="12" oninput="autoFormatRUT(this)">
+        </div>
+        <div class="form-group">
+          <label>Teléfono</label>
+          <div class="phone-input-wrapper">
+            <select id="telefonoPrefijo">
+              <option value="+56">🇨🇱 +56</option>
+              <option value="+54">🇦🇷 +54</option>
+              <option value="+51">🇵🇪 +51</option>
+              <option value="+591">🇧🇴 +591</option>
+            </select>
+            <input type="tel" id="telefonoNumero" placeholder="9 1234 5678">
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline" onclick="cerrarModal()">Cancelar</button>
+        <button type="submit" class="btn btn-primary" id="btnGuardar">Guardar</button>
+      </div>
+    </form>
+  </div>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/clientes.js"></script>
+</body>
+</html>

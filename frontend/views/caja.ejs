@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="es">
+<head><%- include('partials/head', { title: 'Caja' }) %></head>
+<body>
+<div class="layout">
+  <%- include('partials/sidebar', { page: 'caja' }) %>
+  <main class="main">
+    <div class="page-header"><h1>Caja — Cobro de Servicio</h1></div>
+    <div class="alert" id="alerta"></div>
+    <div class="card" style="margin-bottom:1.5rem">
+      <div class="card-title">Equipos listos para cobro</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>#</th><th>Cliente</th><th>Equipo</th><th>Requerimiento</th><th></th></tr></thead>
+          <tbody id="equiposListos"><tr><td colspan="5"><div class="empty-state"><p>Cargando…</p></div></td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card cobro-card" id="formCard" style="display:none">
+      <div class="card-title" id="formTitulo">Emitir boleta</div>
+      <div class="alert" id="alertaForm"></div>
+      <form id="formCobro" onsubmit="emitirBoleta(event)">
+        <input type="hidden" id="equipoSelId">
+        <div class="form-group" style="margin-bottom:1rem"><label>Servicio *</label><select id="servicioSel" required onchange="calcularResumen()"></select></div>
+        <div class="form-row" style="margin-bottom:1rem">
+          <div class="form-group"><label>Anticipo (CLP)</label><input type="text" id="anticipo" value="0" data-raw="0" oninput="maskCLP(this);calcularResumen()"></div>
+          <div class="form-group"><label>Descuento (CLP)</label><input type="text" id="descuento" value="0" data-raw="0" oninput="maskCLP(this);calcularResumen()"></div>
+        </div>
+        <div class="form-group" style="margin-bottom:1rem"><label>Monto pagado (CLP) *</label><input type="text" id="montoPagado" required data-raw="" placeholder="0" oninput="maskCLP(this);calcularResumen()"></div>
+        <div class="resumen-box" id="resumenBox">
+          <div class="resumen-row"><span>Precio del servicio</span><span id="rPrecio">—</span></div>
+          <div class="resumen-row"><span>Descuento</span><span id="rDescuento">—</span></div>
+          <div class="resumen-row total"><span>Total a pagar</span><span id="rTotal">—</span></div>
+          <div class="resumen-row"><span>Anticipo previo</span><span id="rAnticipo">—</span></div>
+          <div class="resumen-row"><span>Saldo restante</span><span id="rSaldo">—</span></div>
+          <div class="resumen-row vuelto"><span>Vuelto</span><span id="rVuelto">—</span></div>
+        </div>
+        <div style="display:flex;gap:0.75rem;margin-top:1.25rem">
+          <button type="button" class="btn btn-outline" onclick="cancelarCobro()">Cancelar</button>
+          <button type="submit" class="btn btn-success" id="btnEmitir">Emitir boleta</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</div>
+<script src="/js/app.js"></script>
+<script src="/js/caja.js"></script>
+</body>
+</html>
