@@ -158,13 +158,21 @@ async function eliminar(req, res) {
   const equipo = dbGet('SELECT id, estado FROM equipos WHERE id = ?', [req.params.id]);
   if (!equipo) return res.status(404).json({ error: 'Equipo no encontrado' });
 
-  if (['listo', 'entregado'].includes(equipo.estado)) {
+  // Solo el superadmin puede forzar el borrado (?forzar=true) pasando por
+  // encima de las reglas de negocio (estado listo/entregado, boletas asociadas).
+  const forzar = req.query.forzar === 'true' && req.user?.rol === 'superadmin';
+
+  if (!forzar && ['listo', 'entregado'].includes(equipo.estado)) {
     return res.status(409).json({ error: 'No se puede eliminar un equipo en estado listo o entregado' });
   }
 
   const tieneBoletas = dbGet('SELECT id FROM boletas WHERE equipo_id = ?', [req.params.id]);
-  if (tieneBoletas) {
+  if (tieneBoletas && !forzar) {
     return res.status(409).json({ error: 'No se puede eliminar un equipo que tiene boletas asociadas' });
+  }
+
+  if (forzar) {
+    dbRun('DELETE FROM boletas WHERE equipo_id = ?', [req.params.id]);
   }
 
   dbRun('DELETE FROM equipos WHERE id = ?', [req.params.id]);

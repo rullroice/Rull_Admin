@@ -7,6 +7,7 @@ process.env.NODE_ENV       = 'test';
 
 const request = require('supertest');
 const { createTestDb, closeDb } = require('../src/db');
+const { crearAdminYObtenerToken, crearSuperAdminYObtenerToken } = require('./helpers');
 
 let app;
 let token;
@@ -21,13 +22,9 @@ beforeAll(async () => {
   await createTestDb();
   app = require('../server');
 
-  await request(app).post('/api/auth/register').send({
-    nombre: 'Admin Test', email: 'admin@test.cl', password: 'password123', rol: 'admin'
+  token = await crearAdminYObtenerToken(app, {
+    nombre: 'Admin Test', email: 'admin@test.cl', password: 'password123'
   });
-  const res = await request(app).post('/api/auth/login').send({
-    email: 'admin@test.cl', password: 'password123'
-  });
-  token = res.body.token;
 });
 
 afterAll(() => closeDb());
@@ -191,5 +188,49 @@ describe('Clientes — CRUD', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error).toContain('equipos');
+  });
+
+  test('TC-C14 | DELETE cliente con equipos + ?forzar=true sin ser superadmin → sigue en 409', async () => {
+    const crearCliente = await request(app)
+      .post('/api/clientes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nombre: 'Forzar', apellido: 'NoSuper', rut: '9.999.999-3' });
+
+    await request(app)
+      .post('/api/equipos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ cliente_id: crearCliente.body.id, tipo: 'notebook', requerimiento: 'No enciende' });
+
+    const res = await request(app)
+      .delete(`/api/clientes/${crearCliente.body.id}?forzar=true`)
+      .set('Authorization', `Bearer ${token}`); // token es 'admin', no 'superadmin'
+
+    expect(res.status).toBe(409);
+  });
+
+  test('TC-C15 | DELETE cliente con equipos + ?forzar=true con superadmin → 200 (cascada)', async () => {
+    const tokenSuper = await crearSuperAdminYObtenerToken(app);
+
+    const crearCliente = await request(app)
+      .post('/api/clientes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nombre: 'Forzar', apellido: 'ConSuper', rut: '1.234.567-4' });
+
+    const crearEquipo = await request(app)
+      .post('/api/equipos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ cliente_id: crearCliente.body.id, tipo: 'notebook', requerimiento: 'No enciende' });
+
+    const res = await request(app)
+      .delete(`/api/clientes/${crearCliente.body.id}?forzar=true`)
+      .set('Authorization', `Bearer ${tokenSuper}`);
+
+    expect(res.status).toBe(200);
+
+    // El equipo asociado también debe haber sido eliminado en cascada
+    const verificarEquipo = await request(app)
+      .get(`/api/equipos/${crearEquipo.body.id}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(verificarEquipo.status).toBe(404);
   });
 });

@@ -5,6 +5,7 @@ cargarUsuarioUI();
 cargarClientes();
 
 const PREFIJOS_TEL = ['+591', '+56', '+54', '+51'];
+let clientesCache = [];
 
 function formatRUT(val) {
   const cleaned = val.replace(/[^0-9kK]/g, '');
@@ -25,6 +26,7 @@ async function cargarClientes() {
   try {
     const data = await apiFetch(url);
     if (!data) return;
+    clientesCache = data;
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="6"><div class="empty-state"><p>No hay clientes registrados.</p></div></td></tr>';
       return;
@@ -32,13 +34,13 @@ async function cargarClientes() {
     tbody.innerHTML = data.map(c => `
       <tr>
         <td>${c.id}</td>
-        <td>${c.nombre} ${c.apellido}</td>
-        <td>${c.rut}</td>
-        <td>${c.telefono || '—'}</td>
+        <td>${esc(c.nombre)} ${esc(c.apellido)}</td>
+        <td>${esc(c.rut)}</td>
+        <td>${esc(c.telefono) || '—'}</td>
         <td>${c.creado_en.slice(0,10)}</td>
         <td>
           <button class="btn btn-sm btn-outline" onclick="editarCliente(${c.id})">Editar</button>
-          <button class="btn btn-sm btn-danger"  onclick="eliminarCliente(${c.id}, '${c.nombre} ${c.apellido}')">Eliminar</button>
+          <button class="btn btn-sm btn-danger"  onclick="eliminarCliente(${c.id})">Eliminar</button>
         </td>
       </tr>`).join('');
   } catch (err) { mostrarAlerta('alerta', err.message); }
@@ -111,11 +113,27 @@ async function guardarCliente(e) {
   }
 }
 
-async function eliminarCliente(id, nombre) {
+async function eliminarCliente(id) {
+  const cliente = clientesCache.find(c => c.id === id);
+  const nombre  = cliente ? `${cliente.nombre} ${cliente.apellido}` : `#${id}`;
   if (!confirm(`¿Eliminar al cliente "${nombre}"?`)) return;
   try {
     await apiFetch(`/api/clientes/${id}`, { method: 'DELETE' });
     mostrarAlerta('alerta', 'Cliente eliminado', 'success');
     cargarClientes();
-  } catch (err) { mostrarAlerta('alerta', err.message); }
+  } catch (err) {
+    // Solo el superadmin puede forzar el borrado de un cliente con equipos asociados.
+    const usuario = getUsuario();
+    if (usuario?.rol === 'superadmin' && confirm(
+      `${err.message}\n\n¿Forzar la eliminación de "${nombre}"? Esto también eliminará sus equipos y boletas asociadas.`
+    )) {
+      try {
+        await apiFetch(`/api/clientes/${id}?forzar=true`, { method: 'DELETE' });
+        mostrarAlerta('alerta', 'Cliente eliminado (forzado)', 'success');
+        cargarClientes();
+      } catch (err2) { mostrarAlerta('alerta', err2.message); }
+      return;
+    }
+    mostrarAlerta('alerta', err.message);
+  }
 }

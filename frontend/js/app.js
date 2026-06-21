@@ -24,6 +24,21 @@ function cargarUsuarioUI() {
   const r = document.getElementById('usuarioRol');
   if (u && n) n.textContent = u.nombre;
   if (u && r) r.textContent = u.rol;
+
+  // El link "Usuarios" (consola superadmin) solo es visible para ese rol
+  const navUsuarios = document.getElementById('navUsuarios');
+  if (navUsuarios) navUsuarios.style.display = (u && u.rol === 'superadmin') ? '' : 'none';
+}
+
+// Redirige al dashboard si el usuario logueado no tiene el rol requerido.
+// Usado por páginas exclusivas de un rol (ej. la consola superadmin).
+function requireRole(rol) {
+  const u = getUsuario();
+  if (!u || u.rol !== rol) {
+    window.location.href = '/dashboard';
+    return false;
+  }
+  return true;
 }
 
 async function apiFetch(url, options = {}) {
@@ -51,6 +66,14 @@ async function apiFetch(url, options = {}) {
     : res.json().then(d => { throw new Error(d.error || 'Error del servidor'); });
 }
 
+// Escapa texto antes de insertarlo en HTML (previene XSS al renderizar datos
+// del usuario — nombres, requerimientos, etc. — con innerHTML).
+function esc(valor) {
+  return String(valor ?? '').replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 function mostrarAlerta(id, msg, tipo = 'error') {
   const el = document.getElementById(id);
   if (!el) return;
@@ -69,6 +92,11 @@ function badgeEstado(estado) {
     entregado:     'Entregado'
   };
   return `<span class="badge badge-${estado}">${labels[estado] || estado}</span>`;
+}
+
+function badgeRol(rol) {
+  const labels = { superadmin: 'Superadmin', admin: 'Administrador', cajero: 'Cajero' };
+  return `<span class="badge badge-${rol}">${labels[rol] || rol}</span>`;
 }
 
 function formatMonto(n) {

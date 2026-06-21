@@ -29,6 +29,7 @@ app.use(express.urlencoded({ extended: false }));
 // ── Archivos estáticos ──────────────────────────────────────────────────────
 app.use('/css', express.static(path.join(__dirname, '..', 'frontend', 'css')));
 app.use('/js',  express.static(path.join(__dirname, '..', 'frontend', 'js')));
+app.use('/img', express.static(path.join(__dirname, '..', 'frontend', 'img')));
 
 // ── Rutas de páginas (vistas EJS) ───────────────────────────────────────────
 app.get('/',          (_req, res) => res.redirect('/login'));
@@ -39,6 +40,7 @@ app.get('/equipos',   (_req, res) => res.render('equipos',   { title: 'Equipos',
 app.get('/servicios', (_req, res) => res.render('servicios', { title: 'Servicios',  page: 'servicios' }));
 app.get('/caja',      (_req, res) => res.render('caja',      { title: 'Caja',       page: 'caja'      }));
 app.get('/boletas',   (_req, res) => res.render('boletas',   { title: 'Boletas',    page: 'boletas'   }));
+app.get('/usuarios',  (_req, res) => res.render('usuarios',  { title: 'Usuarios',   page: 'usuarios'  }));
 
 // ── Rutas API ───────────────────────────────────────────────────────────────
 app.use('/api/auth',      authRoutes);
@@ -66,11 +68,18 @@ app.use((err, _req, res, _next) => {
 });
 
 // ── Iniciar servidor ────────────────────────────────────────────────────────
+// Antes de escuchar, se asegura que existan los usuarios superadmin/admin
+// iniciales (idempotente — no duplica si ya existen).
 if (require.main === module) {
-  app.listen(PORT, () => {
-    console.log(`✅ RullTec corriendo en http://localhost:${PORT}`);
-    console.log(`   Entorno: ${process.env.NODE_ENV || 'development'}`);
-  });
+  const { seed } = require('./seed');
+  seed()
+    .catch(err => console.error('❌ Error al crear usuarios iniciales:', err.message))
+    .finally(() => {
+      app.listen(PORT, () => {
+        console.log(`✅ RullTec corriendo en http://localhost:${PORT}`);
+        console.log(`   Entorno: ${process.env.NODE_ENV || 'development'}`);
+      });
+    });
 }
 
 module.exports = app;

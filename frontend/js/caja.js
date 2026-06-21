@@ -6,12 +6,14 @@ cargarEquiposListos();
 cargarServicios();
 
 let serviciosCatalogo = [];
+let equiposListosCache = [];
 
 async function cargarEquiposListos() {
   const tbody = document.getElementById('equiposListos');
   try {
     const data = await apiFetch('/api/caja');
     if (!data) return;
+    equiposListosCache = data;
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No hay equipos listos para cobro en este momento.</p></div></td></tr>';
       return;
@@ -19,10 +21,10 @@ async function cargarEquiposListos() {
     tbody.innerHTML = data.map(e => `
       <tr>
         <td>${e.id}</td>
-        <td>${e.cliente_nombre}<br><small style="color:var(--text-soft)">${e.cliente_rut}</small></td>
-        <td>${e.tipo}${e.marca ? ' ' + e.marca : ''}</td>
-        <td style="max-width:200px;white-space:normal">${e.requerimiento}</td>
-        <td><button class="btn btn-sm btn-success" onclick="seleccionarEquipo(${e.id}, '${e.tipo} ${e.marca || ''}', '${e.cliente_nombre}')">Cobrar</button></td>
+        <td>${esc(e.cliente_nombre)}<br><small style="color:var(--text-soft)">${esc(e.cliente_rut)}</small></td>
+        <td>${esc(e.tipo)}${e.marca ? ' ' + esc(e.marca) : ''}</td>
+        <td style="max-width:200px;white-space:normal">${esc(e.requerimiento)}</td>
+        <td><button class="btn btn-sm btn-success" onclick="seleccionarEquipo(${e.id})">Cobrar</button></td>
       </tr>`).join('');
   } catch (err) { mostrarAlerta('alerta', err.message); }
 }
@@ -32,13 +34,17 @@ async function cargarServicios() {
     serviciosCatalogo = await apiFetch('/api/servicios') || [];
     const sel = document.getElementById('servicioSel');
     sel.innerHTML = '<option value="">Seleccionar servicio…</option>' +
-      serviciosCatalogo.map(s => `<option value="${s.id}" data-costo="${s.costo}">${s.nombre} — ${formatMonto(s.costo)}</option>`).join('');
+      serviciosCatalogo.map(s => `<option value="${s.id}" data-costo="${s.costo}">${esc(s.nombre)} — ${formatMonto(s.costo)}</option>`).join('');
   } catch {}
 }
 
-function seleccionarEquipo(id, tipo, cliente) {
+function seleccionarEquipo(id) {
+  const equipo = equiposListosCache.find(e => e.id === id);
+  if (!equipo) return;
+  const tipo    = `${equipo.tipo} ${equipo.marca || ''}`.trim();
+  const cliente = equipo.cliente_nombre;
   document.getElementById('equipoSelId').value        = id;
-  document.getElementById('formTitulo').textContent   = `Cobro — ${tipo.trim()} de ${cliente}`;
+  document.getElementById('formTitulo').textContent   = `Cobro — ${tipo} de ${cliente}`;
   document.getElementById('formCard').style.display   = 'block';
   document.getElementById('formCobro').reset();
 

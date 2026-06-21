@@ -7,6 +7,7 @@ process.env.NODE_ENV       = 'test';
 
 const request = require('supertest');
 const { createTestDb, closeDb } = require('../src/db');
+const { crearAdminYObtenerToken, crearSuperAdminYObtenerToken } = require('./helpers');
 
 let app;
 let token;
@@ -16,13 +17,9 @@ beforeAll(async () => {
   await createTestDb();
   app = require('../server');
 
-  await request(app).post('/api/auth/register').send({
-    nombre: 'Admin Test', email: 'admin@equipos.cl', password: 'password123', rol: 'admin'
+  token = await crearAdminYObtenerToken(app, {
+    nombre: 'Admin Test', email: 'admin@equipos.cl', password: 'password123'
   });
-  const resLogin = await request(app).post('/api/auth/login').send({
-    email: 'admin@equipos.cl', password: 'password123'
-  });
-  token = resLogin.body.token;
 
   // Crear cliente base para los tests de equipos
   const resCliente = await request(app)
@@ -211,6 +208,29 @@ describe('Equipos — Ciclo de estados', () => {
 
     expect(res.status).toBe(409);
     expect(res.body.error).toContain('listo');
+  });
+
+  test('TC-E13b | DELETE equipo en estado listo + ?forzar=true sin ser superadmin → sigue en 409', async () => {
+    const res = await request(app)
+      .delete(`/api/equipos/${equipoA}?forzar=true`)
+      .set('Authorization', `Bearer ${token}`); // token es 'admin', no 'superadmin'
+
+    expect(res.status).toBe(409);
+  });
+
+  test('TC-E13c | DELETE equipo en estado listo + ?forzar=true con superadmin → 200', async () => {
+    const tokenSuper = await crearSuperAdminYObtenerToken(app);
+
+    const res = await request(app)
+      .delete(`/api/equipos/${equipoA}?forzar=true`)
+      .set('Authorization', `Bearer ${tokenSuper}`);
+
+    expect(res.status).toBe(200);
+
+    const verificar = await request(app)
+      .get(`/api/equipos/${equipoA}`)
+      .set('Authorization', `Bearer ${token}`);
+    expect(verificar.status).toBe(404);
   });
 });
 

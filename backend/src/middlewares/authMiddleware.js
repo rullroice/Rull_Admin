@@ -44,4 +44,13 @@ function soloAdmin(req, res, next) {
   next();
 }
 
-module.exports = { authMiddleware, soloAdmin };
+// Middleware que solo permite acceso al superadministrador (consola).
+// El superadmin es el único rol que puede asignar quién es el administrador del taller.
+function soloSuperAdmin(req, res, next) {
+  if (req.user?.rol !== 'superadmin') {
+    return res.status(403).json({ error: 'Acceso restringido al superadministrador' });
+  }
+  next();
+}
+
+module.exports = { authMiddleware, soloAdmin, soloSuperAdmin };

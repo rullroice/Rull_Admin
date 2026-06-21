@@ -8,6 +8,7 @@ process.env.NODE_ENV       = 'test';
 
 const request = require('supertest');
 const { createTestDb, closeDb } = require('../src/db');
+const { crearAdminYObtenerToken } = require('./helpers');
 
 let app;
 let token;
@@ -20,13 +21,9 @@ beforeAll(async () => {
   app = require('../server');
 
   // Usuario
-  await request(app).post('/api/auth/register').send({
-    nombre: 'Admin', email: 'admin@boletas.cl', password: 'password123', rol: 'admin'
+  token = await crearAdminYObtenerToken(app, {
+    nombre: 'Admin', email: 'admin@boletas.cl', password: 'password123'
   });
-  const resLogin = await request(app).post('/api/auth/login').send({
-    email: 'admin@boletas.cl', password: 'password123'
-  });
-  token = resLogin.body.token;
 
   // Cliente
   const resCliente = await request(app)

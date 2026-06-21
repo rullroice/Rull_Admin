@@ -74,8 +74,12 @@ async function eliminar(req, res) {
   const servicio = dbGet('SELECT id FROM servicios WHERE id = ?', [req.params.id]);
   if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
+  // Solo el superadmin puede forzar la desactivación (?forzar=true) pasando
+  // por encima de la regla de negocio que protege servicios con boletas.
+  const forzar = req.query.forzar === 'true' && req.user?.rol === 'superadmin';
+
   const tieneBoletas = dbGet('SELECT id FROM boletas WHERE servicio_id = ?', [req.params.id]);
-  if (tieneBoletas) {
+  if (tieneBoletas && !forzar) {
     return res.status(409).json({ error: 'No se puede desactivar un servicio que tiene boletas asociadas' });
   }
 

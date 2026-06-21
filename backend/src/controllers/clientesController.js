@@ -140,9 +140,20 @@ async function eliminar(req, res) {
   const cliente = dbGet('SELECT id FROM clientes WHERE id = ?', [req.params.id]);
   if (!cliente) return res.status(404).json({ error: 'Cliente no encontrado' });
 
-  const tieneEquipos = dbGet('SELECT id FROM equipos WHERE cliente_id = ?', [req.params.id]);
-  if (tieneEquipos) {
+  // Solo el superadmin puede forzar el borrado (?forzar=true) pasando por
+  // encima de la regla de negocio que protege a clientes con equipos.
+  const forzar = req.query.forzar === 'true' && req.user?.rol === 'superadmin';
+
+  const equiposCliente = dbAll('SELECT id FROM equipos WHERE cliente_id = ?', [req.params.id]);
+  if (equiposCliente.length && !forzar) {
     return res.status(409).json({ error: 'No se puede eliminar un cliente que tiene equipos registrados' });
+  }
+
+  if (forzar) {
+    for (const eq of equiposCliente) {
+      dbRun('DELETE FROM boletas WHERE equipo_id = ?', [eq.id]);
+    }
+    dbRun('DELETE FROM equipos WHERE cliente_id = ?', [req.params.id]);
   }
 
   dbRun('DELETE FROM clientes WHERE id = ?', [req.params.id]);

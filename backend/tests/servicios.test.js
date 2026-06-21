@@ -7,6 +7,7 @@ process.env.NODE_ENV       = 'test';
 
 const request = require('supertest');
 const { createTestDb, closeDb } = require('../src/db');
+const { crearAdminYObtenerToken, crearSuperAdminYObtenerToken } = require('./helpers');
 
 let app;
 let token;
@@ -15,13 +16,9 @@ beforeAll(async () => {
   await createTestDb();
   app = require('../server');
 
-  await request(app).post('/api/auth/register').send({
-    nombre: 'Admin Test', email: 'admin@servicios.cl', password: 'password123', rol: 'admin'
+  token = await crearAdminYObtenerToken(app, {
+    nombre: 'Admin Test', email: 'admin@servicios.cl', password: 'password123'
   });
-  const res = await request(app).post('/api/auth/login').send({
-    email: 'admin@servicios.cl', password: 'password123'
-  });
-  token = res.body.token;
 });
 
 afterAll(() => closeDb());
@@ -43,6 +40,7 @@ describe('Servicios — Acceso protegido', () => {
 
 describe('Servicios — CRUD', () => {
   let servicioId;
+  let servicioConBoletaId;
 
   test('TC-S02 | POST con datos válidos → 201 + id', async () => {
     const res = await request(app)
@@ -145,5 +143,61 @@ describe('Servicios — CRUD', () => {
       .get('/api/servicios')
       .set('Authorization', `Bearer ${token}`);
     expect(listado.body.find(s => s.id === crear.body.id)).toBeUndefined();
+  });
+
+  test('TC-S11 | DELETE servicio con boletas asociadas → 409', async () => {
+    const crearServicio = await request(app)
+      .post('/api/servicios')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nombre: 'Servicio con boleta', costo: 15000 });
+
+    const crearCliente = await request(app)
+      .post('/api/clientes')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ nombre: 'Cliente', apellido: 'Boleta', rut: '11.111.111-1' });
+
+    const crearEquipo = await request(app)
+      .post('/api/equipos')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ cliente_id: crearCliente.body.id, tipo: 'notebook', requerimiento: 'Prueba de boleta' });
+
+    await request(app).patch(`/api/equipos/${crearEquipo.body.id}/estado`)
+      .set('Authorization', `Bearer ${token}`).send({ estado: 'en_revision' });
+    await request(app).patch(`/api/equipos/${crearEquipo.body.id}/estado`)
+      .set('Authorization', `Bearer ${token}`).send({ estado: 'en_reparacion' });
+    await request(app).patch(`/api/equipos/${crearEquipo.body.id}/estado`)
+      .set('Authorization', `Bearer ${token}`).send({ estado: 'listo' });
+
+    await request(app)
+      .post('/api/boletas')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ equipo_id: crearEquipo.body.id, servicio_id: crearServicio.body.id, monto_pagado: 15000 });
+
+    const res = await request(app)
+      .delete(`/api/servicios/${crearServicio.body.id}`)
+      .set('Authorization', `Bearer ${token}`);
+
+    expect(res.status).toBe(409);
+    expect(res.body.error).toContain('boletas');
+
+    servicioConBoletaId = crearServicio.body.id;
+  });
+
+  test('TC-S12 | DELETE servicio con boletas + ?forzar=true sin ser superadmin → sigue en 409', async () => {
+    const res = await request(app)
+      .delete(`/api/servicios/${servicioConBoletaId}?forzar=true`)
+      .set('Authorization', `Bearer ${token}`); // token es 'admin', no 'superadmin'
+
+    expect(res.status).toBe(409);
+  });
+
+  test('TC-S13 | DELETE servicio con boletas + ?forzar=true con superadmin → 200', async () => {
+    const tokenSuper = await crearSuperAdminYObtenerToken(app);
+
+    const res = await request(app)
+      .delete(`/api/servicios/${servicioConBoletaId}?forzar=true`)
+      .set('Authorization', `Bearer ${tokenSuper}`);
+
+    expect(res.status).toBe(200);
   });
 });

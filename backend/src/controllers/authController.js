@@ -6,7 +6,7 @@
 const bcrypt = require('bcryptjs');
 const jwt    = require('jsonwebtoken');
 const Joi    = require('joi');
-const { getDb, dbRun, dbGet } = require('../db');
+const { getDb, dbRun, dbGet, dbAll } = require('../db');
 
 // ── Esquemas de validación ───────────────────────────────────────────────────
 
@@ -32,8 +32,17 @@ const schemaRegistro = Joi.object({
   password: Joi.string().min(8).required().messages({
     'string.min': 'La contraseña debe tener al menos 8 caracteres',
     'any.required': 'La contraseña es obligatoria'
-  }),
-  rol: Joi.string().valid('admin', 'cajero').default('cajero')
+  })
+  // El rol NO se acepta desde el registro público: todo usuario nuevo entra
+  // como 'cajero'. Solo el superadmin puede ascender a alguien a 'admin'
+  // mediante PATCH /api/auth/usuarios/:id/rol.
+});
+
+const schemaAsignarRol = Joi.object({
+  rol: Joi.string().valid('admin', 'cajero').required().messages({
+    'any.only':     "El rol debe ser 'admin' o 'cajero'",
+    'any.required': 'El rol es obligatorio'
+  })
 });
 
 // ── RF-01: Login ─────────────────────────────────────────────────────────────
@@ -69,7 +78,7 @@ async function registro(req, res) {
   const { error, value } = schemaRegistro.validate(req.body, { abortEarly: false });
   if (error) return res.status(400).json({ error: error.details[0].message });
 
-  const { nombre, email, password, rol } = value;
+  const { nombre, email, password } = value;
   await getDb();
 
   const existe = dbGet('SELECT id FROM usuarios WHERE email = ?', [email]);
@@ -78,7 +87,7 @@ async function registro(req, res) {
   const hash = await bcrypt.hash(password, 10);
   const resultado = dbRun(
     'INSERT INTO usuarios (nombre, email, hash, rol) VALUES (?, ?, ?, ?)',
-    [nombre, email, hash, rol]
+    [nombre, email, hash, 'cajero']
   );
 
   return res.status(201).json({ mensaje: 'Usuario registrado correctamente', id: resultado.lastInsertRowid });
@@ -96,4 +105,47 @@ async function perfil(req, res) {
   return res.json(usuario);
 }
 
-module.exports = { login, registro, perfil };
+// ── Consola superadmin: gestión de roles ─────────────────────────────────────
+// El superadmin es quien asigna qué usuario es el administrador del taller.
+
+async function listarUsuarios(req, res) {
+  await getDb();
+  const usuarios = dbAll('SELECT id, nombre, email, rol, creado_en FROM usuarios ORDER BY id');
+  return res.json(usuarios);
+}
+
+async function asignarRol(req, res) {
+  const { error, value } = schemaAsignarRol.validate(req.body, { abortEarly: false });
+  if (error) return res.status(400).json({ error: error.details[0].message });
+
+  const id = Number(req.params.id);
+  await getDb();
+
+  const usuario = dbGet('SELECT id, rol FROM usuarios WHERE id = ?', [id]);
+  if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+  if (usuario.rol === 'superadmin') {
+    return res.status(403).json({ error: 'No se puede modificar el rol del superadministrador' });
+  }
+
+  dbRun('UPDATE usuarios SET rol = ? WHERE id = ?', [value.rol, id]);
+  return res.json({ mensaje: `Rol actualizado a '${value.rol}' correctamente` });
+}
+
+async function eliminarUsuario(req, res) {
+  const id = Number(req.params.id);
+  await getDb();
+
+  const usuario = dbGet('SELECT id, rol FROM usuarios WHERE id = ?', [id]);
+  if (!usuario) return res.status(404).json({ error: 'Usuario no encontrado' });
+  if (usuario.rol === 'superadmin') {
+    return res.status(403).json({ error: 'No se puede eliminar al superadministrador' });
+  }
+  if (id === req.user.id) {
+    return res.status(403).json({ error: 'No puedes eliminar tu propio usuario' });
+  }
+
+  dbRun('DELETE FROM usuarios WHERE id = ?', [id]);
+  return res.json({ mensaje: 'Usuario eliminado correctamente' });
+}
+
+module.exports = { login, registro, perfil, listarUsuarios, asignarRol, eliminarUsuario };

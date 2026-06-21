@@ -18,8 +18,8 @@ async function cargarBoletas() {
     tbody.innerHTML = data.map(b => `
       <tr style="cursor:pointer" onclick="verDetalle(${b.id})">
         <td><strong>#${b.id}</strong></td>
-        <td>${b.cliente_nombre}<br><small style="color:var(--text-soft)">${b.cliente_rut}</small></td>
-        <td>${b.servicio_nombre}</td>
+        <td>${esc(b.cliente_nombre)}<br><small style="color:var(--text-soft)">${esc(b.cliente_rut)}</small></td>
+        <td>${esc(b.servicio_nombre)}</td>
         <td>${formatMonto(b.precio)}</td>
         <td>${formatMonto(b.descuento)}</td>
         <td><strong>${formatMonto(b.total)}</strong></td>
@@ -37,8 +37,8 @@ async function verDetalle(id) {
     boletaActual = b;
     document.getElementById('boletaNum').textContent = `#${b.id}`;
     document.getElementById('boletaDetalle').innerHTML = `
-      <p><strong>Cliente:</strong> ${b.cliente_nombre} (${b.cliente_rut})</p>
-      <p><strong>Servicio:</strong> ${b.servicio_nombre}</p>
+      <p><strong>Cliente:</strong> ${esc(b.cliente_nombre)} (${esc(b.cliente_rut)})</p>
+      <p><strong>Servicio:</strong> ${esc(b.servicio_nombre)}</p>
       <hr style="margin:0.75rem 0;border-color:var(--border)">
       <p><strong>Precio:</strong> ${formatMonto(b.precio)}</p>
       <p><strong>Descuento:</strong> ${formatMonto(b.descuento)}</p>
@@ -66,7 +66,7 @@ function descargarPDF() {
   // Header
   doc.setFontSize(22);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 52, 96);
+  doc.setTextColor(92, 92, 153);
   doc.text('RullTec', 20, 22);
 
   doc.setFontSize(10);
@@ -76,7 +76,7 @@ function descargarPDF() {
 
   doc.setFontSize(14);
   doc.setFont('helvetica', 'bold');
-  doc.setTextColor(15, 52, 96);
+  doc.setTextColor(92, 92, 153);
   doc.text(`Boleta #${b.id}`, 190, 22, { align: 'right' });
   doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');

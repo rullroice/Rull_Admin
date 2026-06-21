@@ -4,11 +4,14 @@ requireAuth();
 cargarUsuarioUI();
 cargarServicios();
 
+let serviciosCache = [];
+
 async function cargarServicios() {
   const tbody = document.getElementById('tablaBody');
   try {
     const data = await apiFetch('/api/servicios');
     if (!data) return;
+    serviciosCache = data;
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="5"><div class="empty-state"><p>No hay servicios en el catálogo.</p></div></td></tr>';
       return;
@@ -16,12 +19,12 @@ async function cargarServicios() {
     tbody.innerHTML = data.map(s => `
       <tr>
         <td>${s.id}</td>
-        <td>${s.nombre}</td>
+        <td>${esc(s.nombre)}</td>
         <td>${formatMonto(s.costo)}</td>
         <td>${s.creado_en.slice(0,10)}</td>
         <td>
           <button class="btn btn-sm btn-outline" onclick="editarServicio(${s.id})">Editar</button>
-          <button class="btn btn-sm btn-danger"  onclick="desactivarServicio(${s.id}, '${s.nombre}')">Desactivar</button>
+          <button class="btn btn-sm btn-danger"  onclick="desactivarServicio(${s.id})">Desactivar</button>
         </td>
       </tr>`).join('');
   } catch (err) { mostrarAlerta('alerta', err.message); }
@@ -80,11 +83,27 @@ async function guardarServicio(e) {
   } finally { btn.disabled = false; }
 }
 
-async function desactivarServicio(id, nombre) {
+async function desactivarServicio(id) {
+  const servicio = serviciosCache.find(s => s.id === id);
+  const nombre   = servicio ? servicio.nombre : `#${id}`;
   if (!confirm(`¿Desactivar el servicio "${nombre}"?`)) return;
   try {
     await apiFetch(`/api/servicios/${id}`, { method: 'DELETE' });
     mostrarAlerta('alerta', 'Servicio desactivado', 'success');
     cargarServicios();
-  } catch (err) { mostrarAlerta('alerta', err.message); }
+  } catch (err) {
+    // Solo el superadmin puede forzar la desactivación de un servicio con boletas asociadas.
+    const usuario = getUsuario();
+    if (usuario?.rol === 'superadmin' && confirm(
+      `${err.message}\n\n¿Forzar la desactivación de "${nombre}" igualmente?`
+    )) {
+      try {
+        await apiFetch(`/api/servicios/${id}?forzar=true`, { method: 'DELETE' });
+        mostrarAlerta('alerta', 'Servicio desactivado (forzado)', 'success');
+        cargarServicios();
+      } catch (err2) { mostrarAlerta('alerta', err2.message); }
+      return;
+    }
+    mostrarAlerta('alerta', err.message);
+  }
 }

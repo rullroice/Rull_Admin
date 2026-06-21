@@ -193,3 +193,176 @@ describe('RF-03 — Perfil de usuario', () => {
   });
 
 });
+
+// ════════════════════════════════════════════════════════════════════════════
+// RF-04: CONSOLA SUPERADMIN — asignar administrador del taller
+// ════════════════════════════════════════════════════════════════════════════
+
+describe('RF-04 — Consola superadmin', () => {
+
+  let tokenSuperAdmin;
+  let tokenCajero;
+  let idCajero;
+
+  beforeAll(async () => {
+    // Crear superadmin directamente en la BD (no se puede registrar vía API pública)
+    const bcrypt = require('bcryptjs');
+    const { dbRun } = require('../src/db');
+    const hash = await bcrypt.hash('superpass123', 10);
+    dbRun(
+      'INSERT INTO usuarios (nombre, email, hash, rol) VALUES (?, ?, ?, ?)',
+      ['Super Admin', 'super@rulltec.cl', hash, 'superadmin']
+    );
+
+    const loginSuper = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'super@rulltec.cl', password: 'superpass123' });
+    tokenSuperAdmin = loginSuper.body.token;
+
+    const loginCajero = await request(app)
+      .post('/api/auth/login')
+      .send({ email: USUARIO_VALIDO.email, password: USUARIO_VALIDO.password });
+    tokenCajero = loginCajero.body.token;
+
+    const perfilCajero = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenCajero}`);
+    idCajero = perfilCajero.body.id;
+  });
+
+  test('TC-13 | Registro público rechaza intento de auto-asignar rol → 400 (campo no permitido)', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ nombre: 'Intento Admin', email: 'intento@rulltec.cl', password: 'password123', rol: 'admin' });
+
+    expect(res.status).toBe(400);
+  });
+
+  test('TC-13b | Registro público sin rol → siempre crea "cajero"', async () => {
+    const res = await request(app)
+      .post('/api/auth/register')
+      .send({ nombre: 'Usuario Normal', email: 'normal@rulltec.cl', password: 'password123' });
+
+    expect(res.status).toBe(201);
+
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'normal@rulltec.cl', password: 'password123' });
+    const perfil = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${login.body.token}`);
+
+    expect(perfil.body.rol).toBe('cajero');
+  });
+
+  test('TC-14 | GET /usuarios sin ser superadmin → 403', async () => {
+    const res = await request(app)
+      .get('/api/auth/usuarios')
+      .set('Authorization', `Bearer ${tokenCajero}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  test('TC-15 | GET /usuarios con superadmin → 200 + lista sin hash', async () => {
+    const res = await request(app)
+      .get('/api/auth/usuarios')
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`);
+
+    expect(res.status).toBe(200);
+    expect(Array.isArray(res.body)).toBe(true);
+    expect(res.body.length).toBeGreaterThan(0);
+    expect(res.body[0].hash).toBeUndefined();
+  });
+
+  test('TC-16 | PATCH /usuarios/:id/rol con superadmin → asigna "admin" (el lugar)', async () => {
+    const res = await request(app)
+      .patch(`/api/auth/usuarios/${idCajero}/rol`)
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`)
+      .send({ rol: 'admin' });
+
+    expect(res.status).toBe(200);
+
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: USUARIO_VALIDO.email, password: USUARIO_VALIDO.password });
+    const perfil = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${login.body.token}`);
+
+    expect(perfil.body.rol).toBe('admin');
+  });
+
+  test('TC-17 | PATCH /usuarios/:id/rol sin ser superadmin → 403', async () => {
+    const res = await request(app)
+      .patch(`/api/auth/usuarios/${idCajero}/rol`)
+      .set('Authorization', `Bearer ${tokenCajero}`)
+      .send({ rol: 'admin' });
+
+    expect(res.status).toBe(403);
+  });
+
+  test('TC-18 | PATCH /usuarios/:id/rol con rol inválido → 400', async () => {
+    const res = await request(app)
+      .patch(`/api/auth/usuarios/${idCajero}/rol`)
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`)
+      .send({ rol: 'superadmin' });
+
+    expect(res.status).toBe(400);
+  });
+
+  test('TC-19 | PATCH /usuarios/:id/rol sobre usuario inexistente → 404', async () => {
+    const res = await request(app)
+      .patch('/api/auth/usuarios/99999/rol')
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`)
+      .send({ rol: 'admin' });
+
+    expect(res.status).toBe(404);
+  });
+
+  test('TC-20 | DELETE /usuarios/:id sin ser superadmin → 403', async () => {
+    const res = await request(app)
+      .delete(`/api/auth/usuarios/${idCajero}`)
+      .set('Authorization', `Bearer ${tokenCajero}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  test('TC-21 | DELETE /usuarios/:id con superadmin → 200 y el usuario deja de poder loguearse', async () => {
+    const registro = await request(app)
+      .post('/api/auth/register')
+      .send({ nombre: 'Para Eliminar', email: 'eliminar@rulltec.cl', password: 'password123' });
+
+    const res = await request(app)
+      .delete(`/api/auth/usuarios/${registro.body.id}`)
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`);
+
+    expect(res.status).toBe(200);
+
+    const login = await request(app)
+      .post('/api/auth/login')
+      .send({ email: 'eliminar@rulltec.cl', password: 'password123' });
+
+    expect(login.status).toBe(401);
+  });
+
+  test('TC-22 | DELETE /usuarios/:id sobre el superadmin → 403 (no se puede eliminar)', async () => {
+    const perfilSuper = await request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`);
+
+    const res = await request(app)
+      .delete(`/api/auth/usuarios/${perfilSuper.body.id}`)
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`);
+
+    expect(res.status).toBe(403);
+  });
+
+  test('TC-23 | DELETE /usuarios/:id sobre usuario inexistente → 404', async () => {
+    const res = await request(app)
+      .delete('/api/auth/usuarios/99999')
+      .set('Authorization', `Bearer ${tokenSuperAdmin}`);
+
+    expect(res.status).toBe(404);
+  });
+
+});

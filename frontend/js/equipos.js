@@ -13,6 +13,7 @@ const LABEL_ESTADOS = {
 
 let equipoEstadoId     = null;
 let equipoEstadoActual = null;
+let equiposCache       = [];
 
 async function cargarClientesSelect() {
   try {
@@ -20,7 +21,7 @@ async function cargarClientesSelect() {
     if (!clientes) return;
     const sel = document.getElementById('clienteSelect');
     sel.innerHTML = '<option value="">Seleccionar cliente…</option>' +
-      clientes.map(c => `<option value="${c.id}">${c.nombre} ${c.apellido} — ${c.rut}</option>`).join('');
+      clientes.map(c => `<option value="${c.id}">${esc(c.nombre)} ${esc(c.apellido)} — ${esc(c.rut)}</option>`).join('');
   } catch {}
 }
 
@@ -31,6 +32,7 @@ async function cargarEquipos() {
   try {
     const data = await apiFetch(url);
     if (!data) return;
+    equiposCache = data;
     if (!data.length) {
       tbody.innerHTML = '<tr><td colspan="7"><div class="empty-state"><p>No hay equipos.</p></div></td></tr>';
       return;
@@ -38,14 +40,15 @@ async function cargarEquipos() {
     tbody.innerHTML = data.map(e => `
       <tr>
         <td>${e.id}</td>
-        <td>${e.cliente_nombre}<br><small style="color:var(--text-soft)">${e.cliente_rut}</small></td>
-        <td>${e.tipo}</td>
-        <td>${e.marca || '—'}</td>
-        <td style="max-width:200px;white-space:normal">${e.requerimiento}</td>
+        <td>${esc(e.cliente_nombre)}<br><small style="color:var(--text-soft)">${esc(e.cliente_rut)}</small></td>
+        <td>${esc(e.tipo)}</td>
+        <td>${esc(e.marca) || '—'}</td>
+        <td style="max-width:200px;white-space:normal">${esc(e.requerimiento)}</td>
         <td>${badgeEstado(e.estado)}</td>
         <td>
-          <button class="btn btn-sm btn-warning" onclick="abrirModalEstado(${e.id}, '${e.estado}', '${e.tipo}')">Estado</button>
+          <button class="btn btn-sm btn-warning" onclick="abrirModalEstado(${e.id})">Estado</button>
           ${e.estado !== 'entregado' ? `<button class="btn btn-sm btn-outline" onclick="editarEquipo(${e.id})">Editar</button>` : ''}
+          <button class="btn btn-sm btn-danger" onclick="eliminarEquipo(${e.id})">Eliminar</button>
         </td>
       </tr>`).join('');
   } catch (err) { mostrarAlerta('alerta', err.message); }
@@ -105,14 +108,16 @@ async function guardarEquipo(e) {
   } finally { btn.disabled = false; }
 }
 
-function abrirModalEstado(id, estadoActual, tipo) {
+function abrirModalEstado(id) {
+  const equipo = equiposCache.find(e => e.id === id);
+  if (!equipo) return;
   equipoEstadoId     = id;
-  equipoEstadoActual = estadoActual;
+  equipoEstadoActual = equipo.estado;
   document.getElementById('modalEstado').classList.add('open');
   document.getElementById('alertaEstado').style.display = 'none';
   document.getElementById('equipoInfo').textContent =
-    `Equipo #${id} — ${tipo} | Estado actual: ${LABEL_ESTADOS[estadoActual] || estadoActual}`;
-  document.getElementById('nuevoEstado').value = estadoActual;
+    `Equipo #${id} — ${equipo.tipo} | Estado actual: ${LABEL_ESTADOS[equipo.estado] || equipo.estado}`;
+  document.getElementById('nuevoEstado').value = equipo.estado;
 }
 
 function cerrarModalEstado() {
@@ -138,4 +143,30 @@ async function cambiarEstado() {
     cerrarModalEstado();
     cargarEquipos();
   } catch (err) { mostrarAlerta('alertaEstado', err.message); }
+}
+
+async function eliminarEquipo(id) {
+  const equipo = equiposCache.find(e => e.id === id);
+  const tipo   = equipo ? equipo.tipo : '';
+  if (!confirm(`¿Eliminar el equipo "${tipo}" #${id}?`)) return;
+  try {
+    await apiFetch(`/api/equipos/${id}`, { method: 'DELETE' });
+    mostrarAlerta('alerta', 'Equipo eliminado', 'success');
+    cargarEquipos();
+  } catch (err) {
+    // Solo el superadmin puede forzar el borrado de un equipo bloqueado
+    // (estado listo/entregado o con boletas asociadas).
+    const usuario = getUsuario();
+    if (usuario?.rol === 'superadmin' && confirm(
+      `${err.message}\n\n¿Forzar la eliminación del equipo #${id}? Esto también eliminará sus boletas asociadas.`
+    )) {
+      try {
+        await apiFetch(`/api/equipos/${id}?forzar=true`, { method: 'DELETE' });
+        mostrarAlerta('alerta', 'Equipo eliminado (forzado)', 'success');
+        cargarEquipos();
+      } catch (err2) { mostrarAlerta('alerta', err2.message); }
+      return;
+    }
+    mostrarAlerta('alerta', err.message);
+  }
 }
